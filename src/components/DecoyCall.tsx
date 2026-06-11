@@ -76,12 +76,15 @@ export default function DecoyCall() {
           voiceCharacter: preset.character
         })
       });
+      if (!response.ok) {
+        throw new Error(`Server status ${response.status}`);
+      }
       const data = await response.json();
       if (data.audioData) {
         setSoundBuffer(data.audioData);
       }
     } catch (e) {
-      console.error("Failed to load decoy call TTS audio payload:", e);
+      console.warn("Failed to load decoy call TTS audio payload (will auto-fallback to native SpeechSynthesis):", e);
     } finally {
       setLoadingAudio(false);
     }
@@ -167,7 +170,30 @@ export default function DecoyCall() {
 
   // Play synthesized response audio on Accept
   const playPresetAudio = async () => {
-    if (!soundBuffer) return;
+    if (!soundBuffer) {
+      // Fallback to browser's built-in speech synthesis if AI TTS didn't load
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(activePreset.speechPrompt);
+          utterance.rate = 1.0;
+          utterance.pitch = 0.95;
+          const voices = window.speechSynthesis.getVoices();
+          if (voices && voices.length > 0) {
+            const preferredVoice = voices.find(v => 
+              v.name.toLowerCase().includes('google us') || 
+              v.name.toLowerCase().includes('english') || 
+              v.name.toLowerCase().includes('male')
+            );
+            if (preferredVoice) utterance.voice = preferredVoice;
+          }
+          window.speechSynthesis.speak(utterance);
+        } catch (synthErr) {
+          console.error("Speech synthesis fallback issue:", synthErr);
+        }
+      }
+      return;
+    }
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       // Use 24000Hz as specified in Gemini TTS audio spec
@@ -202,6 +228,9 @@ export default function DecoyCall() {
   const handleDecline = () => {
     stopRingtone();
     sourceNodeRef.current?.stop();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     setCallState('idle');
   };
 

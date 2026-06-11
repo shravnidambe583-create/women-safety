@@ -13,21 +13,25 @@ app.use(express.json());
 
 const PORT = 3000;
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
-});
+// Lazy initialize Gemini Client
+let aiInstance: GoogleGenAI | null = null;
 
-// Guard helper
-function checkApiKey() {
-  if (!process.env.GEMINI_API_KEY) {
+function getGeminiClient(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not defined in the environment secrets.");
   }
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return aiInstance;
 }
 
 // Initialize Firebase Admin SDK for deep server-side Firestore connection
@@ -62,7 +66,7 @@ app.get("/api/health", (req, res) => {
 // Endpoint 1: Guardian AI chatbot (Safety Companion Assistant) with integrated database access
 app.post("/api/gemini/chat", async (req, res) => {
   try {
-    checkApiKey();
+    const ai = getGeminiClient();
     const { messages, currentSituation, userId } = req.body;
     
     if (!messages || !Array.isArray(messages)) {
@@ -140,7 +144,7 @@ If the user feels uncomfortable but not in immediate threat:
 // Endpoint 2: surrounds risk and live safety route assessment
 app.post("/api/gemini/assess-threat", async (req, res) => {
   try {
-    checkApiKey();
+    const ai = getGeminiClient();
     const { description, location, userId } = req.body;
 
     if (!description) {
@@ -230,7 +234,7 @@ Perform a strict threat evaluation and return a JSON structured object matching 
 // Endpoint 3: Call Decoy Audio Generator (TTS voice synthesis)
 app.post("/api/gemini/decoy-audio", async (req, res) => {
   try {
-    checkApiKey();
+    const ai = getGeminiClient();
     const { promptText, voiceCharacter } = req.body;
 
     const speakText = promptText || "Hey, I am just around the corner. I see you now! I am walking up to you, stay right there.";
