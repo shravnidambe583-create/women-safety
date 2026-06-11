@@ -1,0 +1,6 @@
+{
+  "name": "Nidar",
+  "description": "An emergency safety platform equipped with real-time SOS activation, live location tracking, discrete helper utilities, and a Guardian AI companion powered by Gemini.",
+  "requestFramePermissions": ["geolocation", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,169 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Private safety profile of the user including security verification pin.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique user authentication identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "User's display or safety name"
+        },
+        "pin": {
+          "type": "string",
+          "description": "Emergency deactivation passcode"
+        },
+        "medicalNotes": {
+          "type": "string",
+          "description": "Critical response medical information"
+        },
+        "contacts": {
+          "type": "array",
+          "description": "Array of emergency contacts (Max 5)"
+        }
+      },
+      "required": ["userId", "name", "pin"]
+    },
+    "EmergencyAlert": {
+      "title": "Emergency Alert",
+      "description": "Real-time active SOS event containing status, location, and metadata details.",
+      "type": "object",
+      "properties": {
+        "alertId": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "resolved"]
+        },
+        "threatLevel": {
+          "type": "string"
+        },
+        "audioLogged": {
+          "type": "boolean"
+        },
+        "breadcrumbs": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["alertId", "userId", "userName", "latitude", "longitude", "status", "createdAt"]
+    },
+    "SafetyCheckIn": {
+      "title": "Safety Check-In",
+      "description": "A scheduled monitoring timer that triggers auto-SOS if client fails to deactivate.",
+      "type": "object",
+      "properties": {
+        "checkInId": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        },
+        "triggerTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expireTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "completed", "expired"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["checkInId", "userId", "durationMinutes", "triggerTime", "expireTime", "status"]
+    },
+    "ThreatAssessment": {
+      "title": "Threat Assessment",
+      "description": "AI-generated situation threat assessments logged securely.",
+      "type": "object",
+      "properties": {
+        "assessmentId": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "location": {
+          "type": "object"
+        },
+        "riskLevel": {
+          "type": "integer"
+        },
+        "severityText": {
+          "type": "string"
+        },
+        "tactics": {
+          "type": "array"
+        },
+        "decoyResponse": {
+          "type": "string"
+        },
+        "emergencyRecommended": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["assessmentId", "userId", "description", "riskLevel", "severityText", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/settings/profile": {
+      "schema": "UserProfile",
+      "description": "Private profile information for the individual user."
+    },
+    "/alerts/{alertId}": {
+      "schema": "EmergencyAlert",
+      "description": "Active global emergency SOS broadcasts."
+    },
+    "/users/{userId}/checkins/{checkInId}": {
+      "schema": "SafetyCheckIn",
+      "description": "Active safety check-in countdown timers for the user."
+    },
+    "/users/{userId}/assessments/{assessmentId}": {
+      "schema": "ThreatAssessment",
+      "description": "AI-generated threat logs."
+    }
+  }
+}

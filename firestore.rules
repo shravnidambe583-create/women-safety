@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global safety net - Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Standard validation primitive functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    // Attribute Validation Blueprints (Anti-Update-Gap / Sanitization)
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() <= 128
+          && data.name is string && data.name.size() <= 100
+          && data.pin is string && data.pin.size() <= 12
+          && (data.get('medicalNotes', '') is string && data.get('medicalNotes', '').size() <= 1000)
+          && (data.get('contacts', []) is list && data.get('contacts', []).size() <= 5);
+    }
+    
+    function isValidEmergencyAlert(data) {
+      return data.alertId is string && data.alertId.size() <= 128
+          && data.userId is string && data.userId.size() <= 128
+          && data.userName is string && data.userName.size() <= 100
+          && data.latitude is number
+          && data.longitude is number
+          && data.status is string && (data.status == 'active' || data.status == 'resolved')
+          && (data.get('threatLevel', '') is string && data.get('threatLevel', '').size() <= 50)
+          && (data.get('audioLogged', false) is bool)
+          && (data.get('breadcrumbs', []) is list && data.get('breadcrumbs', []).size() <= 100)
+          && data.createdAt == request.time;
+    }
+    
+    function isValidSafetyCheckIn(data) {
+      return data.checkInId is string && data.checkInId.size() <= 128
+          && data.userId is string && data.userId.size() <= 128
+          && data.description is string && data.description.size() <= 200
+          && data.durationMinutes is int && data.durationMinutes >= 1 && data.durationMinutes <= 1440
+          && data.status is string && (data.status == 'pending' || data.status == 'completed' || data.status == 'expired')
+          && data.createdAt == request.time;
+    }
+    
+    // Private User Profile Rules
+    match /users/{userId}/settings/profile {
+      allow read: if isSignedIn() && userId == request.auth.uid;
+      allow create, update: if isSignedIn() && userId == request.auth.uid && isValidUserProfile(incoming());
+    }
+    
+    // Realtime Global SOS Alerts Rules
+    match /alerts/{alertId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidId(alertId) && isValidEmergencyAlert(incoming());
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && (
+        // Allow updating breadcrumbs tracking list or active status values securely
+        incoming().diff(existing()).affectedKeys().hasOnly(['breadcrumbs', 'status', 'updatedAt'])
+      );
+    }
+    
+    // scheduled Safety Check-In Countdowns
+    match /users/{userId}/checkins/{checkInId} {
+      allow read: if isSignedIn() && userId == request.auth.uid;
+      allow create: if isSignedIn() && userId == request.auth.uid && isValidId(checkInId) && isValidSafetyCheckIn(incoming());
+      allow update: if isSignedIn() && userId == request.auth.uid && isValidSafetyCheckIn(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
+      allow delete: if isSignedIn() && userId == request.auth.uid;
+    }
+    
+    // AI Threat Assessments
+    match /users/{userId}/assessments/{assessmentId} {
+      allow read: if isSignedIn() && userId == request.auth.uid;
+    }
+  }
+}

@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+/* Flat, robust light mode overrides */
+.light {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.light .min-h-screen {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Specific main dashboard body elements */
+.light div.min-h-screen.bg-\[\#090b14\],
+.light div.min-h-screen.bg-\[\#070913\] {
+  background-color: #f1f5f9 !important;
+}
+
+/* Card Overrides from CSS classes */
+.light .bg-\[\#121420\],
+.light .bg-\[\#121422\],
+.light .bg-\[\#121420\]\/90,
+.light .bg-\[\#121422\]\/90,
+.light .bg-\[\#111320\]\/80,
+.light .bg-slate-950,
+.light .bg-slate-950\/60,
+.light .bg-slate-950\/50,
+.light .bg-slate-950\/40,
+.light .bg-slate-900,
+.light .bg-slate-900\/40,
+.light .bg-slate-900\/60 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+/* Internal cards, panels and item backgrounds */
+.light .bg-slate-905,
+.light .bg-slate-900\/30,
+.light .bg-slate-950\/40,
+.light .bg-[#121420],
+.light .bg-[#121422] {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Generic text overlays */
+.light .text-slate-100 { color: #0f172a !important; }
+.light .text-slate-200 { color: #1e293b !important; }
+.light .text-slate-300 { color: #334155 !important; }
+.light .text-slate-400 { color: #475569 !important; }
+.light .text-slate-500 { color: #64748b !important; }
+
+/* Dynamic alerts / status indicators styling in light mode */
+.light .bg-emerald-950\/20 {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+  border-color: #a7f3d0 !important;
+}
+
+.light .bg-amber-950\/20,
+.light .bg-amber-950\/10,
+.light .bg-amber-950\/45 {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #fde68a !important;
+}
+
+.light .bg-rose-950\/20,
+.light .bg-rose-950\/15 {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: #fecaca !important;
+}
+
+.light .bg-slate-950\/40 {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Ensure inputs, selects, and textareas show dark text on light bg */
+.light input, 
+.light textarea, 
+.light select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.light input::placeholder, 
+.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Generic border alignments */
+.light .border-slate-800,
+.light .border-slate-850,
+.light .border-slate-900,
+.light .border-slate-950,
+.light .border-slate-905,
+.light .border-slate-805,
+.light .border-indigo-900\/45,
+.light .border-indigo-900\/60,
+.light .border-slate-900\/50,
+.light .border-slate-900\/35 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Header Overrides */
+.light header.bg-\[\#121420\],
+.light header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* Modals and floaters */
+.light .fixed.bg-black\/80 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
+/* Footers */
+.light footer {
+  background-color: #f1f5f9 !important;
+  color: #64748b !important;
+  border-color: #cbd5e1 !important;
+}
