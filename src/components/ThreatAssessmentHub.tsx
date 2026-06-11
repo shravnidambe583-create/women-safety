@@ -41,6 +41,17 @@ export default function ThreatAssessmentHub({ userId }: ThreatAssessmentHubProps
       return;
     }
 
+    const localSandboxUser = localStorage.getItem('local_sandbox_user');
+    if (localSandboxUser) {
+      const localHistoryStr = localStorage.getItem('local_sandbox_assessments') || '[]';
+      try {
+        setHistory(JSON.parse(localHistoryStr));
+      } catch (err) {
+        setHistory([]);
+      }
+      return;
+    }
+
     try {
       const q = query(
         collection(db, "users", userId, "assessments"),
@@ -90,6 +101,32 @@ export default function ThreatAssessmentHub({ userId }: ThreatAssessmentHubProps
 
       const data = await response.json();
       setCurrentResult(data);
+
+      const localSandboxUser = localStorage.getItem('local_sandbox_user');
+      if (localSandboxUser) {
+        const localHistoryStr = localStorage.getItem('local_sandbox_assessments') || '[]';
+        try {
+          const localHistory = JSON.parse(localHistoryStr);
+          const newAssessmentRecord = {
+            assessmentId: data.assessmentId || ("assess_" + Math.random().toString(36).substring(2, 11)),
+            userId: userId || "local_sandbox",
+            description: description,
+            location: coords || null,
+            riskLevel: data.riskLevel || 1,
+            severityText: data.severityText || "Low",
+            tactics: data.tactics || [],
+            decoyResponse: data.decoyResponse || "",
+            emergencyRecommended: !!data.emergencyRecommended,
+            createdAt: new Date().toISOString()
+          };
+          const updatedHistory = [newAssessmentRecord, ...localHistory].slice(0, 10);
+          localStorage.setItem('local_sandbox_assessments', JSON.stringify(updatedHistory));
+          setHistory(updatedHistory);
+        } catch (e) {
+          console.error("Failed to append local threat history:", e);
+        }
+      }
+
       setDescription('');
     } catch (err: any) {
       console.error("Threat evaluation request failed:", err);

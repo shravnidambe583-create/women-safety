@@ -15,6 +15,7 @@ interface LoginPageProps {
   isOnline: boolean;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onLocalSandboxLogin: () => void;
 }
 
 export default function LoginPage({
@@ -26,7 +27,8 @@ export default function LoginPage({
   authError,
   isOnline,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  onLocalSandboxLogin
 }: LoginPageProps) {
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -230,10 +232,29 @@ export default function LoginPage({
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-rose-950/20 border border-rose-900/40 p-3 rounded-xl text-xs space-y-1 text-rose-300"
+                className="bg-rose-950/20 border border-rose-900/40 p-4 rounded-xl text-xs space-y-2 text-rose-300"
               >
-                <p className="font-bold uppercase tracking-wider text-[10px]">⚠️ Error Advisory</p>
-                <p className="text-[11px] leading-relaxed text-slate-350">{validationError || authError}</p>
+                <div>
+                  <p className="font-bold uppercase tracking-wider text-[10px]">⚠️ Error Advisory</p>
+                  <p className="text-[11px] leading-relaxed text-slate-300">
+                    {validationError || authError}
+                  </p>
+                </div>
+                
+                {authError && (authError.includes('operation-not-allowed') || authError.includes('disabled') || authError.includes('cancelled') || authError.includes('popup') || authError.includes('blocked')) && (
+                  <div className="pt-2 border-t border-rose-900/40 space-y-2">
+                    <p className="text-[10px] text-slate-400 leading-normal font-mono">
+                      💡 Project Info: To use standard emails, enable the **Email/Password** provider in your Firebase Authentication console (ID: lofty-attic-l07pf).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onLocalSandboxLogin}
+                      className="w-full py-2 bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 text-white font-extrabold uppercase tracking-wider rounded-lg text-[10px] shadow-lg transition-all cursor-pointer"
+                    >
+                      🚀 Bypass Live Auth & Run Local Sandbox Mode
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -285,11 +306,20 @@ export default function LoginPage({
           </div>
 
           {/* Sandboxed disclaimer */}
-          <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-900/50 text-[10px] text-slate-400 leading-normal space-y-1 text-center font-mono">
+          <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-900/50 text-[10px] text-slate-400 leading-normal space-y-2 text-center font-mono">
             <strong>Security Sandbox info</strong>
             <p>
               Under browser iFrames, OAuth Google popups are restricted. Standard Google Sign In may fail; you can use the direct <strong>Email & Password forms</strong> above or click <strong>Guest Entry</strong> to sign in.
             </p>
+            <div className="pt-1.5 border-t border-slate-900/40">
+              <button 
+                type="button"
+                onClick={onLocalSandboxLogin}
+                className="text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer bg-transparent border-none animate-none"
+              >
+                ⚡ Facing issues? Click to force Discreet Local Safe Mode bypass
+              </button>
+            </div>
           </div>
         </motion.div>
       </main>

@@ -84,6 +84,8 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
+        // Clean up raw local session if logging in with live Firebase
+        localStorage.removeItem('local_sandbox_user');
         setUser(currentUser);
         setAuthReady(true);
         // Load existing profile from Firestore
@@ -97,8 +99,22 @@ export default function App() {
           console.warn("Could not retrieve user cloud settings. Using local persistence fallback:", e);
         }
       } else {
-        // Fall back to local browser storage/state gracefully (Anonymous login is admin-restricted)
-        setUser(null);
+        // Fall back to local browser storage/state gracefully
+        const localUserJson = localStorage.getItem('local_sandbox_user');
+        if (localUserJson) {
+          try {
+            const localUser = JSON.parse(localUserJson);
+            setUser(localUser);
+            const localProfile = localStorage.getItem('local_sandbox_profile');
+            if (localProfile) {
+              setProfile(JSON.parse(localProfile));
+            }
+          } catch {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
         setAuthReady(true);
       }
     });
@@ -108,6 +124,10 @@ export default function App() {
 
   const saveProfileToFirestore = async (newProfile: UserSafetyProfile) => {
     if (!user) return;
+    if (user.isLocalSandbox) {
+      localStorage.setItem('local_sandbox_profile', JSON.stringify(newProfile));
+      return;
+    }
     try {
       const profileRef = doc(db, `users/${user.uid}/settings/profile`);
       await setDoc(profileRef, {
@@ -308,12 +328,53 @@ export default function App() {
     }
   };
 
+  const handleLocalSandboxLogin = () => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const mockUser = {
+        uid: "local_sandbox",
+        email: "sandbox@nidar.local",
+        displayName: "Discreet Local User",
+        isLocalSandbox: true
+      };
+      localStorage.setItem('local_sandbox_user', JSON.stringify(mockUser));
+      setUser(mockUser);
+      
+      const localProfile = localStorage.getItem('local_sandbox_profile');
+      if (localProfile) {
+        setProfile(JSON.parse(localProfile));
+      } else {
+        const defaultProfile = {
+          name: 'Discreet Local User',
+          pin: '1234',
+          medicalNotes: 'No medical conditions logged locally.',
+          contacts: [
+            { name: 'Family Guardian Desk', phone: '123-456-7890', email: 'help@safenetwork.org', relationship: 'Guardian' }
+          ],
+          setupCompleted: true
+        };
+        localStorage.setItem('local_sandbox_profile', JSON.stringify(defaultProfile));
+        setProfile(defaultProfile);
+      }
+    } catch (err: any) {
+      setAuthError("Failed to initiate local sandbox: " + err.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     setAuthLoading(true);
     setAuthError(null);
     try {
-      await signOut(auth);
-      setUser(null);
+      if (user?.isLocalSandbox) {
+        localStorage.removeItem('local_sandbox_user');
+        setUser(null);
+      } else {
+        await signOut(auth);
+        setUser(null);
+      }
     } catch (e: any) {
       console.error("Logout failed:", e);
     } finally {
@@ -462,6 +523,7 @@ export default function App() {
         isOnline={isOnline}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        onLocalSandboxLogin={handleLocalSandboxLogin}
       />
     );
   }
