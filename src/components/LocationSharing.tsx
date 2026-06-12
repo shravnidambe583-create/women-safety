@@ -2,6 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, ShieldCheck, Share2, Compass, AlertTriangle, Radio } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { APIProvider, Map as GoogleMap, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+
+const GOOGLE_MAPS_KEY =
+  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
+  (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
+  '';
+const hasValidGoogleKey = Boolean(GOOGLE_MAPS_KEY) && GOOGLE_MAPS_KEY !== 'YOUR_API_KEY';
 
 interface SafeHub {
   name: string;
@@ -33,6 +41,7 @@ export default function LocationSharing({ currentAlertId, theme = 'dark' }: Loca
   const [status, setStatus] = useState<'acquiring' | 'ready' | 'failed'>('acquiring');
   const [copiedLink, setCopiedLink] = useState(false);
   const [trackingActive, setTrackingActive] = useState(false);
+  const [mapProvider, setMapProvider] = useState<'safetypath' | 'google-satellite' | 'google-streets'>('safetypath');
 
   // Poll geolocation
   useEffect(() => {
@@ -206,15 +215,117 @@ export default function LocationSharing({ currentAlertId, theme = 'dark' }: Loca
           )}
         </div>
 
+        {/* Map Mode Selector Bar */}
+        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-900 justify-between items-center text-[10px] font-semibold gap-1 font-mono">
+          <button
+            type="button"
+            onClick={() => setMapProvider('safetypath')}
+            className={`flex-1 py-1.5 rounded-lg text-center cursor-pointer transition-all ${
+              mapProvider === 'safetypath'
+                ? 'bg-indigo-600 text-white font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🌿 Safe Radar
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapProvider('google-satellite')}
+            className={`flex-1 py-1.5 rounded-lg text-center cursor-pointer transition-all ${
+              mapProvider === 'google-satellite'
+                ? 'bg-rose-955 text-rose-300 font-bold border border-rose-900/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🛰️ Google Satellite
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapProvider('google-streets')}
+            className={`flex-1 py-1.5 rounded-lg text-center cursor-pointer transition-all ${
+              mapProvider === 'google-streets'
+                ? 'bg-amber-600/30 text-amber-200 font-bold border border-amber-900/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🗺️ Google Streets
+          </button>
+        </div>
+
         {/* Custom Map Area */}
         <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 h-56 shadow-inner">
           {status === 'acquiring' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-2 text-xs text-slate-500">
+            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-2 text-xs text-slate-500 bg-slate-950/90 z-[1001]">
               <div className="h-5 w-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
               <span>Calibrating secure GPS link...</span>
             </div>
           )}
-          <div ref={mapContainerRef} key={theme} className="h-full w-full" />
+          
+          {hasValidGoogleKey ? (
+            <div className="h-full w-full">
+              <APIProvider apiKey={GOOGLE_MAPS_KEY} version="weekly">
+                <GoogleMap
+                  defaultCenter={coords}
+                  center={coords}
+                  defaultZoom={14}
+                  mapId={theme === 'light' ? 'DEMO_MAP_ID' : 'dark_map_id'}
+                  internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+                  style={{ width: '100%', height: '100%' }}
+                  gestureHandling={'cooperative'}
+                  disableDefaultUI={true}
+                  zoomControl={true}
+                >
+                  {/* User Marker */}
+                  <AdvancedMarker position={coords} title="Your Spot">
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute h-8 w-8 bg-indigo-500/30 rounded-full animate-ping"></div>
+                      <div className="h-4 w-4 bg-indigo-600 rounded-full border-2 border-white shadow-lg"></div>
+                    </div>
+                  </AdvancedMarker>
+
+                  {/* Local support docks */}
+                  {LOCAL_SAFE_HUBS.map((hub, idx) => {
+                    const color = hub.type === 'police' ? '#ef4444' : hub.type === 'hospital' ? '#3b82f6' : '#10b981';
+                    return (
+                      <AdvancedMarker key={idx} position={{ lat: hub.lat, lng: hub.lng }} title={hub.name}>
+                        <Pin background={color} borderColor="#fff" glyphColor="#fff" scale={0.8} />
+                      </AdvancedMarker>
+                    );
+                  })}
+                </GoogleMap>
+              </APIProvider>
+            </div>
+          ) : (
+            <>
+              <div ref={mapContainerRef} key={theme} className={`h-full w-full ${mapProvider === 'safetypath' ? '' : 'hidden'}`} />
+              
+              {mapProvider !== 'safetypath' && (
+                <iframe
+                  src={`https://maps.google.com/maps?q=${coords.lat},${coords.lng}&t=${mapProvider === 'google-satellite' ? 'k' : 'm'}&z=${mapProvider === 'google-satellite' ? 18 : 15}&output=embed`}
+                  className="w-full h-full border-none"
+                  title="Google Location Map Feed"
+                  allowFullScreen={false}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+            </>
+          )}
+
+          {mapProvider !== 'safetypath' && (
+            <div className="absolute bottom-3 right-3 z-[1000] px-2 py-1 bg-slate-950/90 border border-slate-800 rounded text-[9px] font-mono text-slate-300 uppercase tracking-widest flex items-center gap-1 shadow-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Live Google Monitoring</span>
+            </div>
+          )}
+
+          {/* Quick-setup overlay inside map */}
+          {!hasValidGoogleKey && (
+            <div className="absolute top-3 left-3 z-[1000] max-w-[210px] px-2.5 py-2 bg-slate-950/95 border border-indigo-900/50 rounded-xl text-[8px] font-mono leading-normal text-indigo-300 shadow-xl backdrop-blur-sm">
+              <span className="font-extrabold text-amber-400 block mb-0.5">⭐ Google Maps Vector Native</span>
+              Configure <code className="text-white font-bold bg-slate-900 px-1 py-0.2 rounded">GOOGLE_MAPS_PLATFORM_KEY</code> in Secrets (⚙️ Settings) to load premium vector paths.
+            </div>
+          )}
         </div>
 
         {/* Location details */}
@@ -230,14 +341,23 @@ export default function LocationSharing({ currentAlertId, theme = 'dark' }: Loca
         </div>
       </div>
 
-      <div className="pt-4 flex gap-2">
+      <div className="pt-4 flex flex-col sm:flex-row gap-2">
         <button
           onClick={handleCopyLink}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 text-xs font-semibold rounded-xl active:scale-95 transition-all cursor-pointer"
         >
           <Share2 className="h-4 w-4 text-indigo-400" />
-          <span>{copiedLink ? 'Copied Secure Tracker Link' : 'Secure Tracking Link'}</span>
+          <span>{copiedLink ? 'Copied Link' : 'Copy Tracking Link'}</span>
         </button>
+
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all cursor-pointer text-center select-none"
+        >
+          <span>🗺️ Open in Google Maps</span>
+        </a>
       </div>
     </div>
   );

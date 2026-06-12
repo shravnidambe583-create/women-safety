@@ -3,6 +3,14 @@ import {
   Compass, MapPin, AlertTriangle, ShieldCheck, Eye, EyeOff, Navigation, 
   ArrowRight, Sparkles, Footprints, Info
 } from 'lucide-react';
+import { APIProvider, Map as GoogleMap, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
+
+const GOOGLE_MAPS_KEY =
+  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
+  (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
+  '';
+const hasValidGoogleKey = Boolean(GOOGLE_MAPS_KEY) && GOOGLE_MAPS_KEY !== 'YOUR_API_KEY';
 
 interface RouteStop {
   lat: number;
@@ -96,6 +104,104 @@ const DESTINATIONS: SafeDestination[] = [
   }
 ];
 
+function GooglePlatformMapRoutes({
+  selectedDestination,
+  routeType,
+  showHazards,
+  theme
+}: {
+  selectedDestination: SafeDestination;
+  routeType: 'safest' | 'shortest';
+  showHazards: boolean;
+  theme: 'light' | 'dark';
+}) {
+  const map = useMap();
+  const polylinesRef = useRef<any[]>([]);
+  const circlesRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    if (!map || !(window as any).google) return;
+    const google = (window as any).google;
+
+    // Clear old polylines/circles
+    polylinesRef.current.forEach(p => p.setMap(null));
+    polylinesRef.current = [];
+    circlesRef.current.forEach(c => c.setMap(null));
+    circlesRef.current = [];
+
+    // Render Hazard Areas matching HAZARD_ZONES
+    if (showHazards) {
+      HAZARD_ZONES.forEach(hazard => {
+        const color = hazard.type === 'dark' ? '#f59e0b' : '#ef4444';
+        const circle = new google.maps.Circle({
+          strokeColor: color,
+          strokeOpacity: 0.8,
+          strokeWeight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.15,
+          map: map,
+          center: { lat: hazard.lat, lng: hazard.lng },
+          radius: hazard.radius
+        });
+        circlesRef.current.push(circle);
+      });
+    }
+
+    // Render Shortest Path
+    const shortestLatLngs = selectedDestination.shortestPath.map(p => ({ lat: p.lat, lng: p.lng }));
+    const shortestPoly = new google.maps.Polyline({
+      path: shortestLatLngs,
+      geodesic: true,
+      strokeColor: '#ef4444',
+      strokeOpacity: routeType === 'shortest' ? 0.9 : 0.35,
+      strokeWeight: 3.5,
+      map: map
+    });
+
+    if (routeType === 'shortest') {
+      shortestPoly.setOptions({
+        strokeOpacity: 0,
+        icons: [{
+          icon: {
+            path: 'M 0,-1 0,1',
+            strokeOpacity: 1,
+            scale: 2,
+            strokeColor: '#ef4444'
+          },
+          offset: '0',
+          repeat: '10px'
+        }]
+      });
+    }
+    polylinesRef.current.push(shortestPoly);
+
+    // Render Safest Path
+    const safestLatLngs = selectedDestination.safestPath.map(p => ({ lat: p.lat, lng: p.lng }));
+    const safestPoly = new google.maps.Polyline({
+      path: safestLatLngs,
+      geodesic: true,
+      strokeColor: '#10b981',
+      strokeOpacity: routeType === 'safest' ? 1.0 : 0.4,
+      strokeWeight: 5,
+      map: map
+    });
+    polylinesRef.current.push(safestPoly);
+
+    // Auto fit map bounds
+    const bounds = new google.maps.LatLngBounds();
+    safestLatLngs.forEach(coord => bounds.extend(coord));
+    shortestLatLngs.forEach(coord => bounds.extend(coord));
+    map.fitBounds(bounds, 35);
+
+    return () => {
+      polylinesRef.current.forEach(p => p.setMap(null));
+      circlesRef.current.forEach(c => c.setMap(null));
+    };
+  }, [map, selectedDestination, routeType, showHazards, theme]);
+
+  return null;
+}
+
 interface SafeRouteNavigationProps {
   theme?: 'light' | 'dark';
 }
@@ -116,6 +222,9 @@ export default function SafeRouteNavigation({ theme = 'dark' }: SafeRouteNavigat
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [simulationIndex, setSimulationIndex] = useState<number>(0);
   const [simulatedCoords, setSimulatedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // Custom Google Map provider toggle
+  const [mapProvider, setMapProvider] = useState<'safetypath' | 'google-satellite' | 'google-streets'>('safetypath');
 
   const selectedDestination = DESTINATIONS[activeDestIdx];
   const activePath = routeType === 'safest' ? selectedDestination.safestPath : selectedDestination.shortestPath;
@@ -355,18 +464,134 @@ export default function SafeRouteNavigation({ theme = 'dark' }: SafeRouteNavigat
           </div>
         </div>
 
+        {/* Map Mode Selector Bar */}
+        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-900 justify-between items-center text-[10px] font-semibold gap-1 font-mono">
+          <button
+            type="button"
+            onClick={() => setMapProvider('safetypath')}
+            className={`flex-1 py-1.5 rounded-lg text-center cursor-pointer transition-all ${
+              mapProvider === 'safetypath'
+                ? 'bg-indigo-600 text-white font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🌿 Safe Escort Route
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapProvider('google-satellite')}
+            className={`flex-1 py-1.5 rounded-lg text-center cursor-pointer transition-all ${
+              mapProvider === 'google-satellite'
+                ? 'bg-rose-955 text-rose-300 font-bold border border-rose-900/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🛰️ Google Satellite
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapProvider('google-streets')}
+            className={`flex-1 py-1.5 rounded-lg text-center cursor-pointer transition-all ${
+              mapProvider === 'google-streets'
+                ? 'bg-amber-600/30 text-amber-200 font-bold border border-amber-900/40'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🗺️ Google Streets/POIs
+          </button>
+        </div>
+
         {/* Mapping Node */}
         <div className="relative rounded-2xl overflow-hidden border border-slate-850 bg-slate-950 h-56 shadow-inner z-10">
-          <div ref={mapRef} key={theme} className="h-full w-full" />
-          
+          {hasValidGoogleKey ? (
+            <div className="h-full w-full">
+              <APIProvider apiKey={GOOGLE_MAPS_KEY} version="weekly">
+                <GoogleMap
+                  defaultCenter={SF_USER_START}
+                  defaultZoom={14}
+                  mapId={theme === 'light' ? 'DEMO_MAP_ID' : 'dark_map_id'}
+                  internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+                  style={{ width: '100%', height: '100%' }}
+                  gestureHandling={'cooperative'}
+                  disableDefaultUI={true}
+                  zoomControl={true}
+                >
+                  <GooglePlatformMapRoutes
+                    selectedDestination={selectedDestination}
+                    routeType={routeType}
+                    showHazards={showHazards}
+                    theme={theme}
+                  />
+
+                  {/* Start Marker */}
+                  <AdvancedMarker position={SF_USER_START} title="Your starting point">
+                    <Pin background="#6366f1" borderColor="#fff" glyphColor="#fff" scale={0.9} />
+                  </AdvancedMarker>
+
+                  {/* Destination Marker */}
+                  <AdvancedMarker position={{ lat: selectedDestination.lat, lng: selectedDestination.lng }} title={selectedDestination.name}>
+                    <div className="relative flex items-center justify-center">
+                      <div className="h-8 w-8 bg-rose-600 rounded-lg border-2 border-white rotate-45 shadow-lg flex items-center justify-center">
+                        <div className="-rotate-45 text-[9px] text-white font-extrabold font-sans">HUB</div>
+                      </div>
+                    </div>
+                  </AdvancedMarker>
+
+                  {/* Simulated Walker Marker */}
+                  <AdvancedMarker position={simulatedCoords || SF_USER_START} title="Your simulated position">
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute h-8.5 w-8.5 bg-emerald-500/30 rounded-full animate-ping"></div>
+                      <div className="h-5 w-5 bg-emerald-600 rounded-full border-2 border-white shadow-xl flex items-center justify-center text-white font-bold text-[8px]">
+                        🚶
+                      </div>
+                    </div>
+                  </AdvancedMarker>
+                </GoogleMap>
+              </APIProvider>
+            </div>
+          ) : (
+            <>
+              <div ref={mapRef} key={theme} className={`h-full w-full ${mapProvider === 'safetypath' ? '' : 'hidden'}`} />
+              
+              {mapProvider !== 'safetypath' && (
+                <iframe
+                  src={`https://maps.google.com/maps?q=${(simulatedCoords || selectedDestination).lat},${(simulatedCoords || selectedDestination).lng}&t=${mapProvider === 'google-satellite' ? 'k' : 'm'}&z=${mapProvider === 'google-satellite' ? 18 : 15}&output=embed`}
+                  className="w-full h-full border-none"
+                  title="Google Maps Detailed View"
+                  allowFullScreen={false}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+            </>
+          )}
+
           {/* Hazards Overlay Legend badge */}
-          <button 
-            onClick={() => setShowHazards(!showHazards)}
-            className="absolute bottom-3 left-3 z-[1000] px-3 py-1.5 bg-slate-950/90 hover:bg-slate-900 text-[10px] font-mono font-bold text-slate-300 rounded-lg border border-slate-800 transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            {showHazards ? <Eye className="h-3.5 w-3.5 text-rose-500" /> : <EyeOff className="h-3.5 w-3.5 text-slate-500" />}
-            <span>Hazards: {showHazards ? 'On-Map Visible' : 'Hidden'}</span>
-          </button>
+          {mapProvider === 'safetypath' && (
+            <button 
+              onClick={() => setShowHazards(!showHazards)}
+              className="absolute bottom-3 left-3 z-[1000] px-3 py-1.5 bg-slate-950/90 hover:bg-slate-900 text-[10px] font-mono font-bold text-slate-300 rounded-lg border border-slate-800 transition-all cursor-pointer flex items-center gap-1.5 animate-none"
+            >
+              {showHazards ? <Eye className="h-3.5 w-3.5 text-rose-500" /> : <EyeOff className="h-3.5 w-3.5 text-slate-500" />}
+              <span>Hazards: {showHazards ? 'On-Map Visible' : 'Hidden'}</span>
+            </button>
+          )}
+
+          {/* Detailed Info overlay for Google Maps modes */}
+          {mapProvider !== 'safetypath' && (
+            <div className="absolute bottom-3 right-3 z-[1000] px-2 py-1 bg-slate-950/90 border border-slate-800 rounded text-[9px] font-mono text-slate-300 uppercase tracking-widest flex items-center gap-1 shadow-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Live Google Maps feed</span>
+            </div>
+          )}
+
+          {/* Quick-setup overlay inside map */}
+          {!hasValidGoogleKey && (
+            <div className="absolute top-3 left-3 z-[1000] max-w-[210px] px-2.5 py-2 bg-slate-950/95 border border-indigo-900/50 rounded-xl text-[8px] font-mono leading-normal text-indigo-300 shadow-xl backdrop-blur-sm">
+              <span className="font-extrabold text-amber-400 block mb-0.5">⭐ Google Maps Vector Native</span>
+              Configure <code className="text-white font-bold bg-slate-900 px-1 py-0.2 rounded">GOOGLE_MAPS_PLATFORM_KEY</code> in Secrets (⚙️ Settings) to load premium vector paths.
+            </div>
+          )}
         </div>
 
         {/* Comparator Switcher */}
@@ -443,7 +668,7 @@ export default function SafeRouteNavigation({ theme = 'dark' }: SafeRouteNavigat
       </div>
 
       {/* Walk Simulator Activation triggers */}
-      <div className="pt-2">
+      <div className="pt-2 space-y-2.5">
         <button
           onClick={startSimulation}
           disabled={isSimulating}
@@ -461,6 +686,16 @@ export default function SafeRouteNavigation({ theme = 'dark' }: SafeRouteNavigat
             </>
           )}
         </button>
+
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&origin=37.7749,-122.4194&destination=${selectedDestination.lat},${selectedDestination.lng}&travelmode=walking`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full h-11 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 font-bold uppercase tracking-wider rounded-xl text-[10px] flex items-center justify-center gap-2 transition-all cursor-pointer select-none"
+          title="Opens official Google Maps routing"
+        >
+          <span>🗺️ Open Turn-by-Turn Directions in Google Maps</span>
+        </a>
       </div>
     </div>
   );

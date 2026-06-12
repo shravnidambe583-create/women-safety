@@ -69,6 +69,14 @@ export default function App() {
   const [verifyPin, setVerifyPin] = useState('');
   const [verifyPinErr, setVerifyPinErr] = useState(false);
 
+  // New elegant inline contact additions form states
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+  const [newContactEmail, setNewContactEmail] = useState('');
+  const [newContactRel, setNewContactRel] = useState('Guardian');
+  const [contactAddError, setContactAddError] = useState<string | null>(null);
+
   // Profile fields state
   const [profile, setProfile] = useState<UserSafetyProfile>({
     name: '',
@@ -992,23 +1000,163 @@ export default function App() {
                   ))}
 
                   {profile.contacts.length < 5 ? (
-                    <button
-                      onClick={() => {
-                        const name = prompt("Enter Contact Display Name:");
-                        const phone = prompt("Enter Contact Mobile Phone Number:");
-                        const email = prompt("Enter Contact Email address:");
-                        const rel = prompt("Relationship (e.g. Mom, Partner, Roommate):");
-                        
-                        if (name && phone && email && rel) {
-                          const newContact: EmergencyContact = { name, phone, email, relationship: rel };
-                          handleUpdateContacts([...profile.contacts, newContact]);
-                        }
-                      }}
-                      className="w-full py-3 bg-slate-900 border border-dashed border-slate-800 hover:border-indigo-500/50 text-indigo-400 hover:text-indigo-300 transition-all font-semibold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span>Register Emergency Recipient</span>
-                    </button>
+                    <div className="space-y-4">
+                      {!showContactForm ? (
+                        <button
+                          onClick={() => {
+                            setContactAddError(null);
+                            setNewContactName('');
+                            setNewContactPhone('');
+                            setNewContactEmail('');
+                            setNewContactRel('Guardian');
+                            setShowContactForm(true);
+                          }}
+                          className="w-full py-3 bg-slate-900 border border-dashed border-slate-800 hover:border-indigo-500/50 text-indigo-400 hover:text-indigo-300 transition-all font-semibold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          <span>Register Emergency Recipient</span>
+                        </button>
+                      ) : (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-slate-900/80 p-4 rounded-xl border border-indigo-900/40 space-y-4"
+                        >
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">Register Safety Network Contact</h3>
+                          
+                          {contactAddError && (
+                            <p className="text-[11px] text-rose-400 font-mono">{contactAddError}</p>
+                          )}
+
+                          {/* Quick Presets */}
+                          <div className="space-y-1.5">
+                            <span className="text-[9px] text-slate-500 uppercase tracking-widest block font-mono">⚡ Quick Seed Presets</span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewContactName('Family Guardian Hub');
+                                  setNewContactPhone('123-456-7890');
+                                  setNewContactEmail('family@guardiansafety.org');
+                                  setNewContactRel('Family');
+                                }}
+                                className="px-2 py-1.5 bg-slate-950 hover:bg-slate-800 text-[10px] text-slate-300 border border-slate-850 rounded-lg text-center cursor-pointer transition-all truncate"
+                              >
+                                Family Desk
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewContactName('Campus Security Patrol');
+                                  setNewContactPhone('555-019-9111');
+                                  setNewContactEmail('escort@campusnet.edu');
+                                  setNewContactRel('Campus Security');
+                                }}
+                                className="px-2 py-1.5 bg-slate-950 hover:bg-slate-800 text-[10px] text-slate-300 border border-slate-850 rounded-lg text-center cursor-pointer transition-all truncate"
+                              >
+                                Campus Escort
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewContactName('Crisis Help Desk');
+                                  setNewContactPhone('1-800-273-8255');
+                                  setNewContactEmail('support@nationalcrisis.org');
+                                  setNewContactRel('Emergency Desk');
+                                }}
+                                className="px-2 py-1.5 bg-slate-950 hover:bg-slate-800 text-[10px] text-slate-300 border border-slate-850 rounded-lg text-center cursor-pointer transition-all truncate"
+                              >
+                                Crisis Support
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3.5">
+                            <div className="space-y-1">
+                              <label className="text-[9px] text-slate-400 font-mono uppercase tracking-wider block">Full Name</label>
+                              <input 
+                                type="text"
+                                value={newContactName}
+                                onChange={(e) => setNewContactName(e.target.value)}
+                                placeholder="name"
+                                className="w-full text-xs bg-slate-950 border border-slate-850 rounded-lg px-2.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] text-slate-400 font-mono uppercase tracking-wider block">Mobile / Phone</label>
+                              <input 
+                                type="text"
+                                value={newContactPhone}
+                                onChange={(e) => setNewContactPhone(e.target.value)}
+                                placeholder="phone"
+                                className="w-full text-xs bg-slate-950 border border-slate-850 rounded-lg px-2.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3.5">
+                            <div className="space-y-1">
+                              <label className="text-[9px] text-slate-400 font-mono uppercase tracking-wider block">Email Address</label>
+                              <input 
+                                type="email"
+                                value={newContactEmail}
+                                onChange={(e) => setNewContactEmail(e.target.value)}
+                                placeholder="email"
+                                className="w-full text-xs bg-slate-950 border border-slate-850 rounded-lg px-2.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] text-slate-400 font-mono uppercase tracking-wider block">Relationship</label>
+                              <select 
+                                value={newContactRel}
+                                onChange={(e) => setNewContactRel(e.target.value)}
+                                className="w-full text-xs bg-slate-950 border border-slate-850 rounded-lg px-2.5 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+                              >
+                                <option value="Guardian">Guardian</option>
+                                <option value="Mom">Mom</option>
+                                <option value="Dad">Dad</option>
+                                <option value="Partner">Partner</option>
+                                <option value="Roommate">Roommate</option>
+                                <option value="Escort">Escort Companion</option>
+                                <option value="Campus Security">Campus Security</option>
+                                <option value="Friend">Friend</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2.5 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!newContactName.trim() || !newContactPhone.trim() || !newContactEmail.trim() || !newContactRel.trim()) {
+                                  setContactAddError("All fields are required before registering contact.");
+                                  return;
+                                }
+                                const newContact: EmergencyContact = {
+                                  name: newContactName.trim(),
+                                  phone: newContactPhone.trim(),
+                                  email: newContactEmail.trim(),
+                                  relationship: newContactRel
+                                };
+                                handleUpdateContacts([...profile.contacts, newContact]);
+                                setShowContactForm(false);
+                                setContactAddError(null);
+                              }}
+                              className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs transition-all cursor-pointer text-center"
+                            >
+                              Save Recipient
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowContactForm(false)}
+                              className="px-3.5 py-2 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-300 rounded-lg text-xs transition-all cursor-pointer border border-slate-850"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-[10px] text-slate-500 text-center font-mono">Recipient list limits reached (Max 5).</p>
                   )}
